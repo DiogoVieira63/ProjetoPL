@@ -107,7 +107,7 @@ def doFunc(func,list):
     if func == "sum":
         return sum(list)
     elif func == "media":
-        return (list)/len(list)
+        return sum(list)/len(list)
     elif func == "median":
         return statistics.median(list)
     elif func== "mode":
