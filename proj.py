@@ -84,7 +84,9 @@ lexer.line=[]
 
 lexer.begin("header")
 
-f = open("alunos.csv","r")
+file = "testes/alunos5"
+
+f = open(file +".csv","r")
 
 texto = f.read()
 
@@ -97,9 +99,6 @@ for tok in lexer:
 
 print(lexer.header)
 print(lexer.values)
-
-
-
 
 
 def doFunc(func,list):
@@ -136,20 +135,15 @@ for listLine in lexer.values:
                     dictLine[header+"_"+func]=doFunc(func,list)
             else:
                 dictLine[header]=list
-                    
-    
     listDict.append(dictLine)
-
-
 
 # convert into JSON:
 y = json.dumps(listDict, indent=4,ensure_ascii=False)
 
 f.close()
 
-f = open("testeJSON.json","w")
+f = open(file + ".json","w")
 
 f.write(y)
-
 
 f.close()
