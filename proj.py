@@ -57,11 +57,11 @@ def t_header_MULT(t):
     lexer.header[-1]=(elem[0],value,[])
 
 def t_header_TEXT(t):
-    r'\w+'
+    r'(?![ \t]+$)[\w ]+'
     t.lexer.header.append((t.value,1,[]))
 
 def t_TEXT(t):
-    r'(?![ .]+)[\w ]+'
+    r'(?![ \t]+$)[\w ]+'
     t.lexer.line.append(t.value)
 
 def t_header_NEWLINE(t):
