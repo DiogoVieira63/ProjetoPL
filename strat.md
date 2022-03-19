@@ -86,3 +86,133 @@ indent é usado para o nr de espaços usados para a identação do ficheiro json
 ensure_ascci é usado para permitir carateres que não fazem parte do asccii como por exemplo carateres com acento
 
 ### Adição da lista
+
+Para a adição da lista, primeiramente tivemos a necessidade de criar mais um token.
+
+O token MULT. Este Token tem como objetivo identificar o número de colunas que a lista vai abrangir.
+
+A expressão regular utilizada para este token foi:
+
+```py
+r'{(?P<number>\d+)}'
+```
+Assim dá match quando um número se encontra dentro de {}. Usamos um *named group* para o digito, para posteriormente ir buscar esse resultado.
+
+Este token é somente usado para o header.
+E a utilização que ele vai ter será a seguinte:
+Quando houver um match, vemos qual o valor que está contido no grupo "number", vamos buscar o último elemento da lista de headers, pois sabemos que é esse elemento a que se está a referir. E vamos adicionar à lista de headers esse elemento N-1 vezes. Sendo N o nr obtido no grupo.
+
+Com isto, precisamos de saber que na construção do dicionário, este tipo de elementos é para ser colocado numa lista.
+
+Para isso, antes de colocar o elemento no dicionário, verificamos se o header que vamos adicionar é único na lista de headers.
+Se for, procedemos normalmente.
+Se não for, vamos verificar se já existe correspondência para esse header.
+Se não existir, criamos uma lista e adicionamos o elemento.
+Caso exista, adicionamos o elemento ao final da lista.
+
+Assim conseguimos fazer a adição correta de elementos em lista
+
+### Lista com intervalos
+
+Para adicionar este requisito, a nossa antiga definação para o token de MULT não era suficiente, precisa de alterações.
+
+Fizemos as devidas alterações para verificar o intervalo:
+
+```py
+r'{(?P<number>\d+)(,(?P<number2>\d+))?}'
+```
+
+Desta forma o grupo number captura o primeiro nr, e o grupo number2 captura o segundo.
+
+Assim, agora em vez de só verificar o valor que está contido no grupo number, primeiramente verificamos o nr que está contido no grupo number2, e se este não existir, é que usamos o nr contido no grupo.
+
+Anteriormente estávamos sempre à espera de um determinado nr de valores, agora esse valor pode variar. Para isso, precisamos de saber quantos valores em falta.
+
+Para resolver este problema, criámos o token SKIP.
+
+Este token tem como função identificar quando um valor se encontra vazio.
+
+Como é óbvio não podemos identificar strings vazias. Mas sabemos que quando um valor falta, duas coisa podem acontecer:
+- 2 vírgulas seguidas
+- 1 vírgula e um \n seguidos
+
+Assim a expressão regular usada para este token verifica estes dois casos:
+
+```py
+    r'(,{2,}\n*|,\n)'
+```
+Vai verificar se existe 2 ou mais vírgulas seguidas podendo este caso conter um nova linha ou o caso de uma vírgula seguida de uma nova linha
+
+Antes de explicar o que vamos fazer quando houver um match, vamos só referir uma pequena alteração que fizemos relativamente aos headers.
+
+Anteriormente, caso um header fosse uma lista íriamos repetir esse elemento na lista de headers.
+E na criação do dicionário verificar se o elemento era único ou não na lista.
+
+Decidimos melhorar esta abordagem, já a pensar também na adição da função, mas ainda não a implentá-la.
+
+Alterar a lista de headers, de uma lista com apenas nomes para uma lista de pares compostas por nome e nr de colunas.
+
+Assim, ao adicionar um valor para a lista de headers adicionamos com o valor 1, e caso dps se verifica que esse elemento irá ser uma lista, alteramos esse valor de acordo.
+
+Para a construção do dicionário também se torna mais simples, pois apenas precisa de verificar se o segundo elemento do par é 1 ou não, caso não seja, vai percorrer a lista da linha e adicioanar os respetivos valores, o nr de vezes que se encontra no par
+
+Feitas estas alterações, expliquemos agora o que vamos fazer quando houver um match no token SKIP.
+
+Primeiramente é imortante referir que a definação deste token deve se encontrar por cima da definição do token SEP, pois caso esteja em baixo nunca vai haver um match, pois o SEP dá match apenas com ','. Assim ao meter a definição primeiro garantimos que verifica primeiro o padrão do SKIP e só se este falhar, é que dá match no SEP.
+
+Quando há um match, começamos por verificar quantos valores estão em falta e para isso fazemos uso do seguinte cálculo:
+
+```py
+count = (match.count(',')) + ('\n' in match) -1
+```
+
+Sendo match, o resulatdo do match da expressão regular.
+
+Contamos o nr de virgulas-1, e se existe o new line, assim sabemos o valor exato de valores em falta.
+
+Adicionamos None à lista da linha.
+
+Na criação do dicionário, quando se trata de uma lista, iremos verificar se é None ou não, e caso seja não se adiciona à lista e não percorre mais a lista à espera de valor para esse header.
+
+
+Assim conseguimos implementar a falta de números quando se trata de uma lista.
+
+### Funções de agregação
+
+Para este requesito final tivemos a necessidade de criar mais um token, FUNC.
+
+Este token tem como objetivo identificar a função a que vai corresponder o header.
+
+Para tal usamos a seguinte expressão regular:
+
+```py
+    r'::(?P<func>\w+)'
+```
+
+dá match quando existe dois pointos seguidos de uma palvra, usamos um *named group*, para posteriormente capturar o valor contido no grupo.
+
+Para implementar este requisito temos que mais uma vez alterar a nossa lista de headers.
+
+Vai passar de uma lista de pares, que guarda nome e nr de colunas para uma lista de triplos, que guarda o mesmo que anteriormente com a adição da função associada.
+
+Para tal, primeiramente quando adicionamos um valor à lista de headers, adicionamos com este campo da função a None.
+
+Assim quando há um match do token FUNC, iremos alterar o terceiro elemento deste par, para o valor guardade no grupo capturado *func*.
+
+Assim posteriormnet na criação do dicionário, após ter todos os elementos de uma lista prontos a ser adicionados, verificamos se há alguma função associada a esse header.
+
+Se o campo for None, adiciona-se a lista normalmente. Caso contrário, verificamos o nome da função e calculamos o valor resultante. 
+
+Assim, em vez do nome do header, junta-se o nome do header juntamente com o nome da função seprados por um underscore e associa-se ao valor resultante.
+
+As funções que implementamos foram:
+- sum
+    - Somatório da lista
+- media
+    - Média da lista
+- median
+    - Mediana da lista
+- mode
+    - O valor mais frequente
+- range
+    - O intervalo de valores (máximo - mínimo)

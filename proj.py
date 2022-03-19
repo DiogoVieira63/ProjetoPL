@@ -16,17 +16,17 @@ states = [
 
 def t_header_SKIP(t):
     r'(,{2,}\n*|,\n)'
-    if '\n' in t.lexer.lexmatch[0]:
+    if '\n' in t.value:
         t_header_NEWLINE(t)
 
 
 
 def t_SKIP(t):
     r'(,{2,}\n*|,\n)'
-    match = t.lexer.lexmatch[0]
+    match = t.value
     count = (match.count(',')) + ('\n' in match) -1
-    for i in range(count):
-        t.lexer.line.append(None)
+    #for i in range(count):
+    t.lexer.line.append(None)
     if '\n' in match:
         t_NEWLINE(t)
 
@@ -84,7 +84,7 @@ lexer.line=[]
 
 lexer.begin("header")
 
-file = "testes/alunos5"
+file = "testes/alunos3"
 
 f = open(file +".csv","r")
 
@@ -129,6 +129,8 @@ for listLine in lexer.values:
             for i in range(hNum):
                 if listLine[indexLine+i] is not None :
                     list.append(listLine[indexLine+i])
+                else:
+                    break
             indexLine+=hNum
             if other != []:
                 for func in other:
