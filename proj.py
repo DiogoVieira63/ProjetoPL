@@ -1,10 +1,7 @@
 
 import re
-from textwrap import indent
-from typing import final
 import ply.lex as lex
 
-import json
 import statistics
 
 
@@ -24,9 +21,12 @@ def t_header_SKIP(t):
 
 
 def t_SKIP(t):
-    r'(,{2,}\n*|,\n)'
+    r'(?m)((?P<init>^,+)|,{2,}\n*|,\n)'
     match = t.value
-    count = (match.count(',')) + ('\n' in match) -1
+    if t.lexer.lexmatch.group('init'):
+        count = match.count(',')
+    else:
+        count = (match.count(',')) + ('\n' in match) -1
     for i in range(count):
         t.lexer.line.append(None)
     if '\n' in match:
@@ -87,7 +87,7 @@ lexer.line=[]
 
 lexer.begin("header")
 
-file = "testes/lego_sets"
+file = "testes/alunos"
 
 f = open(file +".csv","r")
 
@@ -100,7 +100,7 @@ for tok in lexer:
     print(tok)
 
 
-print(lexer.header)
+#print(lexer.header)
 #print(lexer.values)
 
 
@@ -142,6 +142,39 @@ for listLine in lexer.values:
             else:
                 dictLine[header]=list
     listDict.append(dictLine)
+
+
+indent = 4
+
+def spaces(n):
+    return " " *(indent *n)
+
+def writeDict(listDict):
+    finalStr= "[\n"
+    for indexDict,dict in enumerate(listDict):
+        finalStr+=spaces(1)
+        finalStr+="{\n"
+        for index,(key,elem) in enumerate(dict.items()):
+            finalStr+=spaces(2)
+            if type(elem) is str:
+                finalStr+=f'"{key}": "{elem}"'
+            elif type(elem) is int or type(elem) is float:
+                finalStr+=f'"{key}": {elem}'
+            else:
+                finalStr+='"' + key + '": '
+                finalStr+="["
+                finalStr+=",".join(map(str,list))
+                finalStr+="]\n" 
+            if index != len(dict)-1:
+                finalStr+=","
+            finalStr+="\n"  
+        finalStr+=spaces(1)
+        finalStr+="}"
+        if indexDict != len(listDict)-1:
+            finalStr+=","
+        finalStr+="\n"
+    finalStr+="]\n"
+    return finalStr
 
 y = writeDict(listDict)
 
