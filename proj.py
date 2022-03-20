@@ -87,7 +87,7 @@ lexer.line=[]
 
 lexer.begin("header")
 
-file = "testes/emd"
+file = "testes/lego_sets"
 
 f = open(file +".csv","r")
 
@@ -143,45 +143,7 @@ for listLine in lexer.values:
                 dictLine[header]=list
     listDict.append(dictLine)
 
-indent =4
-
-def spaces(n):
-    return " " *(indent *n)
-
-def writeDict(listDict):
-    finalStr= "[\n"
-    for indexDict,dict in enumerate(listDict):
-        finalStr+=spaces(1)
-        finalStr+="{\n"
-        for index,(key,elem) in enumerate(dict.items()):
-            finalStr+=spaces(2)
-            if type(elem) is str:
-                finalStr+=f'"{key}": "{elem}"'
-            elif type(elem) is int or type(elem) is float:
-                finalStr+=f'"{key}": {elem}'
-            else:
-                finalStr+='"' + key + '": '
-                finalStr+="["
-                finalStr+=",".join(map(str,list))
-                finalStr+="]\n" 
-
-            if index != len(dict)-1:
-                finalStr+=","
-            finalStr+="\n"  
-        finalStr+=spaces(1)
-        finalStr+="}"
-        if indexDict != len(listDict)-1:
-            finalStr+=","
-        finalStr+="\n"
-    finalStr+="]\n"
-    return finalStr
-
-print(listDict)
-
 y = writeDict(listDict)
-
-# convert into JSON:
-#y = json.dumps(listDict, indent=4,ensure_ascii=False)
 
 f.close()
 
