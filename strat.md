@@ -73,17 +73,6 @@ Agora que temos a linha, iremos percorrer a linha juntamente com os headers, e a
 
 Repete-se o processo para todas as linhas e temos o nosso dicionário completo.
 
-Agora é só preciso converter para json.
-
-Para isso, fazemos uso do módulo json
-
-```py
-json.dumps(listDict, indent=4,ensure_ascii=False)
-```
-
-indent é usado para o nr de espaços usados para a identação do ficheiro json
-
-ensure_ascci é usado para permitir carateres que não fazem parte do asccii como por exemplo carateres com acento
 
 ### Adição da lista
 
@@ -126,22 +115,25 @@ Desta forma o grupo number captura o primeiro nr, e o grupo number2 captura o se
 
 Assim, agora em vez de só verificar o valor que está contido no grupo number, primeiramente verificamos o nr que está contido no grupo number2, e se este não existir, é que usamos o nr contido no grupo.
 
-Anteriormente estávamos sempre à espera de um determinado nr de valores, agora esse valor pode variar. Para isso, precisamos de saber quantos valores em falta.
+Assim, guardamos o valor do grupo number como o nosso valor minimo, depois verificamos se existe o grupo *number2*, se existir guardamos como o nosso valor máximo, caso não exista, o nosso valor máximo será igual ao valor mínimo.
+
+Anteriormente estávamos sempre à espera de um determinado nr de valores, agora esse valor pode variar. Para isso, precisamos de saber quantos existe valores em falta.
 
 Para resolver este problema, criámos o token SKIP.
 
 Este token tem como função identificar quando um valor se encontra vazio.
 
-Como é óbvio não podemos identificar strings vazias. Mas sabemos que quando um valor falta, duas coisa podem acontecer:
+Como é óbvio não podemos identificar strings vazias. Mas sabemos que quando um valor falta, três coisas podem acontecer:
 - 2 vírgulas seguidas
-- 1 vírgula e um \n seguidos
+- 1 vírgula e um \n seguidos\
+- 1 vírgula no ínicio da linha
 
 Assim a expressão regular usada para este token verifica estes dois casos:
 
 ```py
-    r'(,{2,}\n*|,\n)'
+    r'(?m)((?P<init>^,+)|,{2,}\n*|,\n)'
 ```
-Vai verificar se existe 2 ou mais vírgulas seguidas podendo este caso conter um nova linha ou o caso de uma vírgula seguida de uma nova linha
+Vai verificar se existe uma vįrgula ou mais no inicio da lista, 2 ou mais vírgulas seguidas podendo este caso conter um nova linha ou o caso de uma vírgula seguida de uma nova linha
 
 Antes de explicar o que vamos fazer quando houver um match, vamos só referir uma pequena alteração que fizemos relativamente aos headers.
 
@@ -150,15 +142,17 @@ E na criação do dicionário verificar se o elemento era único ou não na list
 
 Decidimos melhorar esta abordagem, já a pensar também na adição da função, mas ainda não a implentá-la.
 
-Alterar a lista de headers, de uma lista com apenas nomes para uma lista de pares compostas por nome e nr de colunas.
+Alterar a lista de headers, de uma lista com apenas nomes para uma lista de pares compostas por nome e um par com o nr de colunas.
 
-Assim, ao adicionar um valor para a lista de headers adicionamos com o valor 1, e caso dps se verifica que esse elemento irá ser uma lista, alteramos esse valor de acordo.
+Assim, ao adicionar um valor para a lista de headers adicionamos com o valor (1,1) , e caso dps se verifica que esse elemento irá ser uma lista, alteramos esse valor de acordo.
 
-Para a construção do dicionário também se torna mais simples, pois apenas precisa de verificar se o segundo elemento do par é 1 ou não, caso não seja, vai percorrer a lista da linha e adicioanar os respetivos valores, o nr de vezes que se encontra no par
+Para a construção do dicionário também se torna mais simples, pois apenas precisa de verificar se o segundo elemento do par é (1,1) ou não, caso não seja, vai percorrer a lista da linha e adicioanar os respetivos valores, o nr de vezes que se encontra no par.
+
+Caso o nr de elementos na lista seja menor que o valor minimo da lista, a lista não é adicionada ao dicionário.
 
 Feitas estas alterações, expliquemos agora o que vamos fazer quando houver um match no token SKIP.
 
-Primeiramente é imortante referir que a definação deste token deve se encontrar por cima da definição do token SEP, pois caso esteja em baixo nunca vai haver um match, pois o SEP dá match apenas com ','. Assim ao meter a definição primeiro garantimos que verifica primeiro o padrão do SKIP e só se este falhar, é que dá match no SEP.
+Primeiramente é imortante referir que a definição deste token deve se encontrar por cima da definição do token SEP, pois caso esteja em baixo nunca vai haver um match, pois o SEP dá match apenas com ','. Assim ao meter a definição primeiro garantimos que verifica primeiro o padrão do SKIP e só se este falhar, é que dá match no SEP.
 
 Quando há um match, começamos por verificar quantos valores estão em falta e para isso fazemos uso do seguinte cálculo:
 
@@ -166,16 +160,18 @@ Quando há um match, começamos por verificar quantos valores estão em falta e 
 count = (match.count(',')) + ('\n' in match) -1
 ```
 
-Sendo match, o resulatdo do match da expressão regular.
+Este cálculo caso não seja no inicio da linha, caso seja, verificamos apenas o nr de virgulas.
+
 
 Contamos o nr de virgulas-1, e se existe o new line, assim sabemos o valor exato de valores em falta.
 
-Adicionamos None à lista da linha.
+Adicionamos None à lista da linha, conforme os nrs que estejam vazio.
 
 Na criação do dicionário, quando se trata de uma lista, iremos verificar se é None ou não, e caso seja não se adiciona à lista e não percorre mais a lista à espera de valor para esse header.
 
-
 Assim conseguimos implementar a falta de números quando se trata de uma lista.
+
+Tendo o cuidado de invocar a função que trata da newLine, caso um newLine se encontra no match.
 
 ### Funções de agregação
 
@@ -193,17 +189,17 @@ dá match quando existe dois pointos seguidos de uma palvra, usamos um *named gr
 
 Para implementar este requisito temos que mais uma vez alterar a nossa lista de headers.
 
-Vai passar de uma lista de pares, que guarda nome e nr de colunas para uma lista de triplos, que guarda o mesmo que anteriormente com a adição da função associada.
+Vai passar de uma lista de pares, que guarda nome e nr de colunas para uma lista de triplos, que guarda o mesmo que anteriormente com a adição da lista com as funções associadas.
 
-Para tal, primeiramente quando adicionamos um valor à lista de headers, adicionamos com este campo da função a None.
+Para tal, primeiramente quando adicionamos um valor à lista de headers, adicionamos com este campo da função a [].
 
 Assim quando há um match do token FUNC, iremos alterar o terceiro elemento deste par, para o valor guardade no grupo capturado *func*.
 
-Assim posteriormnet na criação do dicionário, após ter todos os elementos de uma lista prontos a ser adicionados, verificamos se há alguma função associada a esse header.
+Assim posteriormente na criação do dicionário, após ter todos os elementos de uma lista prontos a ser adicionados, verificamos se há alguma função associada a esse header.
 
-Se o campo for None, adiciona-se a lista normalmente. Caso contrário, verificamos o nome da função e calculamos o valor resultante. 
+Se o campo for [], adiciona-se a lista normalmente. Caso contrário, percorremos a lista, verificamos o nome da função e calculamos o valor resultante. 
 
-Assim, em vez do nome do header, junta-se o nome do header juntamente com o nome da função seprados por um underscore e associa-se ao valor resultante.
+Assim, em vez do nome do header, junta-se o nome do header juntamente com o nome da função separados por um underscore e associa-se ao valor resultante.
 
 As funções que implementamos foram:
 - sum
@@ -216,3 +212,43 @@ As funções que implementamos foram:
     - O valor mais frequente
 - range
     - O intervalo de valores (máximo - mínimo)
+
+
+# JSON
+
+A construção do JSON é feita da seguinte forma:
+
+Fazemos uso de uma indentação de 4 espaços. 
+
+Essa identaçao será usada para cada linha quando fazemos uso da função spaces:
+
+```py
+
+indent = 4
+
+def spaces(n):
+    return " " *(indent *n)
+
+```
+
+Percorremos assim a lista de dicionários anteriormente criada.
+
+E para cada dicionário, iremos percorrer os seus itens como pares (key,value) com recurso da função items.
+
+Para cada par, iremos verificar qual o seu tipo para saber como temos de o escrever.
+
+Há 3 tipos que podem ser reconhecidos:
+- float/int
+- list
+- str
+
+Para os números,escrevemos o valor sem aspas.
+
+Para a lista, escrevemos os valores entre [] e separados por virgulas
+
+Para a str, escrevemos o valor com aspas.
+
+Para todos a key é sempre entre aspas seguida de ":".
+
+
+
