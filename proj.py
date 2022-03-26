@@ -88,7 +88,7 @@ lexer.line=[]
 
 lexer.begin("header")
 
-file = "testes/lego_sets"
+file = "testes/alunos"
 
 f = open(file +".csv","r")
 

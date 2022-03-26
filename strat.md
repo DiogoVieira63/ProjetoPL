@@ -21,11 +21,11 @@ As expressões regulares usadas para estes tokens foram:
     - dá match apenas ao caratér ','
 
 - TEXT
-    - `r'(?![ \t]+$)[\w \t]+'`
-    - dá match a tudo o que seja letras,digitos,_,espaço e tab, mas que não contenha apenas espaços, ou seja, tudo o que estiver entre vírgulas
+    - ` r'(?P<quote>[\"\']).+(?P=quote)|[^,\n]+'`
+    - dá match a tudo o que esteja entre `"` ou `'`, ou tudo o que não seja `,` e `\n`
 
 - NEWLINE
-    -`r'\n+'
+    - `r'\n+`
     - dá match ao caráter '\n', uma ou mais vezes, caso haja linhas vazias, para serem ignoradas
 
 
@@ -55,7 +55,7 @@ Quando chega ao fim da linha, ou seja, quando há match no token NEWLINE, já te
 
 Agora, para cada match do token TEXT, iremos adicionar para a lista "line".
 
-E quando chegamos ao fim dessa linha, adicionamos a lista "line" à lista "values", e inicializamos a lista "line" para uma lista vazia.
+E quando chegamos ao fim dessa linha, adicionamos a lista "line" à lista "values", e inicializamos a lista "line" para uma lista vazia., repetindo-se assim o processo para o resto das linhas.
 
 
 Assim quando o lexer chega ao fim, temos duas listas:
@@ -89,7 +89,8 @@ Assim dá match quando um número se encontra dentro de {}. Usamos um *named gro
 
 Este token é somente usado para o header.
 E a utilização que ele vai ter será a seguinte:
-Quando houver um match, vemos qual o valor que está contido no grupo "number", vamos buscar o último elemento da lista de headers, pois sabemos que é esse elemento a que se está a referir. E vamos adicionar à lista de headers esse elemento N-1 vezes. Sendo N o nr obtido no grupo.
+
+- Quando houver um match, vemos qual o valor que está contido no grupo "number", vamos buscar o último elemento da lista de headers, pois sabemos que é esse elemento a que se está a referir. E vamos adicionar à lista de headers esse elemento N-1 vezes. Sendo N o nr obtido no grupo.
 
 Com isto, precisamos de saber que na construção do dicionário, este tipo de elementos é para ser colocado numa lista.
 
@@ -113,7 +114,6 @@ r'{(?P<number>\d+)(,(?P<number2>\d+))?}'
 
 Desta forma o grupo number captura o primeiro nr, e o grupo number2 captura o segundo.
 
-Assim, agora em vez de só verificar o valor que está contido no grupo number, primeiramente verificamos o nr que está contido no grupo number2, e se este não existir, é que usamos o nr contido no grupo.
 
 Assim, guardamos o valor do grupo number como o nosso valor minimo, depois verificamos se existe o grupo *number2*, se existir guardamos como o nosso valor máximo, caso não exista, o nosso valor máximo será igual ao valor mínimo.
 
@@ -124,35 +124,38 @@ Para resolver este problema, criámos o token SKIP.
 Este token tem como função identificar quando um valor se encontra vazio.
 
 Como é óbvio não podemos identificar strings vazias. Mas sabemos que quando um valor falta, três coisas podem acontecer:
-- 2 vírgulas seguidas
-- 1 vírgula e um \n seguidos\
-- 1 vírgula no ínicio da linha
+- pelo menos 2 vírgulas seguidas no meio da frase
+- pelo menos 1 vírgula e um \n seguidos
+- pelo menos 1 vírgula no ínicio da linha
 
-Assim a expressão regular usada para este token verifica estes dois casos:
+Assim a expressão regular usada para este token verifica estes três casos:
 
 ```py
     r'(?m)((?P<init>^,+)|,{2,}\n*|,\n)'
 ```
-Vai verificar se existe uma vįrgula ou mais no inicio da lista, 2 ou mais vírgulas seguidas podendo este caso conter um nova linha ou o caso de uma vírgula seguida de uma nova linha
+
+Nota: 
+é usado `(?m)` para `^` dar match no ínicio de cada linha e não apenas da string
+
+Vai verificar se existe uma vírgula ou mais no inicio da lista, 2 ou mais vírgulas seguidas podendo este caso conter um nova linha ou o caso de uma vírgula seguida de uma nova linha
 
 Antes de explicar o que vamos fazer quando houver um match, vamos só referir uma pequena alteração que fizemos relativamente aos headers.
 
-Anteriormente, caso um header fosse uma lista íriamos repetir esse elemento na lista de headers.
-E na criação do dicionário verificar se o elemento era único ou não na lista.
+Anteriormente, caso um header fosse uma lista íriamos repetir esse elemento na lista de headers e na criação do dicionário verificar se o elemento era único ou não na lista.
 
-Decidimos melhorar esta abordagem, já a pensar também na adição da função, mas ainda não a implentá-la.
+Decidimos melhorar esta abordagem, já a pensar também na adição da função.
 
 Alterar a lista de headers, de uma lista com apenas nomes para uma lista de pares compostas por nome e um par com o nr de colunas.
 
-Assim, ao adicionar um valor para a lista de headers adicionamos com o valor (1,1) , e caso dps se verifica que esse elemento irá ser uma lista, alteramos esse valor de acordo.
+Assim, ao adicionar um valor para a lista de headers adicionamos com o valor e (1,1), e caso dps se verificar que esse elemento irá ser uma lista, alteramos esse valor de acordo.
 
-Para a construção do dicionário também se torna mais simples, pois apenas precisa de verificar se o segundo elemento do par é (1,1) ou não, caso não seja, vai percorrer a lista da linha e adicioanar os respetivos valores, o nr de vezes que se encontra no par.
+Para a construção do dicionário também se torna mais simples, pois apenas precisa de verificar se o segundo elemento do par é (1,1) ou não, caso não seja, vai percorrer a lista da linha e adicionar os respetivos valores, o nr de vezes que se encontra no par.
 
 Caso o nr de elementos na lista seja menor que o valor minimo da lista, a lista não é adicionada ao dicionário.
 
 Feitas estas alterações, expliquemos agora o que vamos fazer quando houver um match no token SKIP.
 
-Primeiramente é imortante referir que a definição deste token deve se encontrar por cima da definição do token SEP, pois caso esteja em baixo nunca vai haver um match, pois o SEP dá match apenas com ','. Assim ao meter a definição primeiro garantimos que verifica primeiro o padrão do SKIP e só se este falhar, é que dá match no SEP.
+Primeiramente é importante referir que a definição deste token deve se encontrar por cima da definição do token SEP, pois caso esteja em baixo nunca vai haver um match, pois o SEP dá match apenas com ','. Assim ao meter a definição primeiro garantimos que verifica primeiro o padrão do SKIP e só se este falhar, é que dá match no SEP.
 
 Quando há um match, começamos por verificar quantos valores estão em falta e para isso fazemos uso do seguinte cálculo:
 
@@ -162,10 +165,7 @@ count = (match.count(',')) + ('\n' in match) -1
 
 Este cálculo caso não seja no inicio da linha, caso seja, verificamos apenas o nr de virgulas.
 
-
-Contamos o nr de virgulas-1, e se existe o new line, assim sabemos o valor exato de valores em falta.
-
-Adicionamos None à lista da linha, conforme os nrs que estejam vazio.
+Adicionamos None à lista da linha, conforme os nrs de valores em falta.
 
 Na criação do dicionário, quando se trata de uma lista, iremos verificar se é None ou não, e caso seja não se adiciona à lista e não percorre mais a lista à espera de valor para esse header.
 
@@ -193,7 +193,7 @@ Vai passar de uma lista de pares, que guarda nome e nr de colunas para uma lista
 
 Para tal, primeiramente quando adicionamos um valor à lista de headers, adicionamos com este campo da função a [].
 
-Assim quando há um match do token FUNC, iremos alterar o terceiro elemento deste par, para o valor guardade no grupo capturado *func*.
+Assim quando há um match do token FUNC, iremos alterar o terceiro elemento deste par, e adicionar o valor guardade no grupo capturado *func*.
 
 Assim posteriormente na criação do dicionário, após ter todos os elementos de uma lista prontos a ser adicionados, verificamos se há alguma função associada a esse header.
 
