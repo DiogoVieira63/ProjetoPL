@@ -4,7 +4,13 @@ import ply.lex as lex
 
 import statistics
 
-
+funcs=[
+    "sum",
+    "media",
+    "median",
+    "mode",
+    "range"
+]
 
 tokens = ["SKIP","SEP","TEXT","NEWLINE","MULT","FUNC"]
 
@@ -37,10 +43,10 @@ def t_header_FUNC(t):
     r'::(?P<func>\w+)'
     func = (t.lexer.lexmatch.group('func'))
     last = t.lexer.header[-1]
-    if last[2] is not []:
-        last[2].append(func)
+    if func == "all":
+        last[2].extend(funcs)
     else:
-        t.lexer.header[-1]=(last[0],last[1],[func])
+        last[2].append(func)
 
 
 def t_ANY_SEP(t):
@@ -65,7 +71,7 @@ def t_header_TEXT(t):
 
 def t_TEXT(t):
     r'(?P<quote>[\"\']).+(?P=quote)|[^,\n]+'
-    t.value=re.sub('"','',t.value)
+    t.value=re.sub(r'["\']',"",t.value)
     if t.value.strip() == "":
         t.lexer.line.append(None)
     else:
@@ -91,7 +97,7 @@ lexer.line=[]
 
 lexer.begin("header")
 
-file = "testes/alunos"
+file = "testes/test"
 
 f = open(file +".csv","r")
 
@@ -101,11 +107,7 @@ lexer.input(texto)
 
 
 for tok in lexer:
-    print(tok)
-
-
-#print(lexer.header)
-#print(lexer.values)
+    pass
 
 
 def doFunc(func,list):
@@ -146,9 +148,12 @@ for listLine in lexer.values:
                     if len(lista) >= hNum[0]:
                         dictLine[header+"_"+func]=doFunc(func,lista)
                     else:
-                        dictLine[header+"_"+func]=None
+                        dictLine[header+"_"+func]=None     
             else:
-                dictLine[header]=lista
+                if len(lista) >= hNum[0]:
+                    dictLine[header]=lista
+                else:
+                    dictLine[header]=None
     listDict.append(dictLine)
 
 

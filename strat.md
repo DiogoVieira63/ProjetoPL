@@ -242,13 +242,15 @@ Há 3 tipos que podem ser reconhecidos:
 - list
 - str
 
+A lista de dicionário encontra-se entre [], para cada linha do CSV corresponde um dicionário que se encontra dentro de {} e estes são separados por vírgulas
+
 Para os números,escrevemos o valor sem aspas.
 
 Para a lista, escrevemos os valores entre [] e separados por virgulas
 
 Para a str, escrevemos o valor com aspas.
 
-Para todos a key é sempre entre aspas seguida de ":".
+Para todos, a key é sempre entre aspas seguida de ":".
 
 
 

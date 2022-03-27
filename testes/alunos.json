@@ -1,17 +1,17 @@
 [
     {
-        "Número": "3162",
+        "Número": 3162,
         "Nome": "Cândido Faísca",
-        "Cur,so": "Teatro"
+        "Curso": "Teatro"
     },
     {
-        "Número": "7777",
+        "Número": 7777,
         "Nome": "Cristiano Ronaldo",
-        "Cur,so": "Desporto"
+        "Curso": "Desporto"
     },
     {
-        "Número": "264",
+        "Número": 264,
         "Nome": "Marcelo Sousa",
-        "Cur,so": "Ciência Política"
+        "Curso": "Ciência Política"
     }
 ]
