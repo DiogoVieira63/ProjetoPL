@@ -66,7 +66,10 @@ def t_header_TEXT(t):
 def t_TEXT(t):
     r'(?P<quote>[\"\']).+(?P=quote)|[^,\n]+'
     t.value=re.sub('"','',t.value)
-    t.lexer.line.append(t.value)
+    if t.value.strip() == "":
+        t.lexer.line.append(None)
+    else:
+        t.lexer.line.append(t.value)
 
 def t_header_NEWLINE(t):
     r'\n'
@@ -126,24 +129,26 @@ for listLine in lexer.values:
     indexLine=0
     for (header,hNum,other) in lexer.header:
         if (hNum == (1,1)):
-            if listLine[indexLine] is not None:
-                dictLine[header]=listLine[indexLine]
+            value = listLine[indexLine]
+            dictLine[header]=listLine[indexLine]
             indexLine+=1
         else: 
             lista=[]
             for i in range(hNum[1]):
                 value= listLine[indexLine + i]
-                if value is not None and not (value.strip() == ''):
+                if value is not None:
                     lista.append(value)
                 else:
                     break
             indexLine+=hNum[1]
-            if len(lista) >= hNum[0]:
-                if other != []:
-                    for func in other:
+            if other != []:
+                for func in other:
+                    if len(lista) >= hNum[0]:
                         dictLine[header+"_"+func]=doFunc(func,lista)
-                else:
-                    dictLine[header]=lista
+                    else:
+                        dictLine[header+"_"+func]=None
+            else:
+                dictLine[header]=lista
     listDict.append(dictLine)
 
 
@@ -155,13 +160,15 @@ def spaces(n):
 
 def writeElem(key,value):
     finalStr = ""
-    if type(value) is str:
+    if value is None:
+        finalStr+=f'"{key}": null'
+    elif type(value) is str:
         try:
             value = float(value)
             if value.is_integer():
                 value=int(value)
             finalStr+=f'"{key}": {value}'
-        except ValueError as error:
+        except ValueError:
             finalStr+=f'"{key}": "{value}"'
     elif type(value) is list:
         finalStr+=f'"{key}": ['
