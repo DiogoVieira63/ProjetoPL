@@ -14,10 +14,7 @@ literals = ['%','#','[',']','"',',','=',':','(',')','$','{','}']
 tokens = ['str','int','float','allQuotes','allBraces','allNoConv','COMMENT'] + list(reserved.values())
 
 
-def t_str(t):
-    r"\w+|'.+?'"
-    t.type = reserved.get(t.value,'str')
-    return t
+
 
 def t_float(t):
     r"\d+\.\d+"
@@ -30,6 +27,10 @@ def t_int(t):
     t.value = int(t.value)
     return t
 
+def t_str(t):
+    r"\w+"
+    t.type = reserved.get(t.value,'str')
+    return t
 
 def t_COMMENT(t):
     r'\#.*'
@@ -38,14 +39,10 @@ def t_COMMENT(t):
 def t_allBraces(t):
     r"{.*}"
     #r"(?P<one>{.*})|(?m){(.|\n)*^}+?"
-    #t.value = t.value[1:-1]
-    #if (t.lexer.lexmatch.group('one')) is not None:
-    #    t.value = "\t" + t.value.strip()
-    #print("Here",t.value)
     return t
 
 def t_allQuotes(t):
-    r"\".*?\""
+    r"\".*?\"|'.*?'"
     return t
 
 

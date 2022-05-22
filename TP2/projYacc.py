@@ -1,4 +1,6 @@
+from numpy import mat
 import ply.yacc as yacc
+from yaml import parse
 from projLex import tokens, literals 
 import re
 from projUtils import *
@@ -44,78 +46,143 @@ def p_Declarations_list(p):
 def p_Declarations_Empty(p):
     "Declarations :  "
 
-
 def p_Declaration(p):
-    "Declaration : '%' TypeDeclaration '=' Attrib"
-    p.parser.current[0][p[2]] = p[4] 
+    "Declaration : '%' PlyDeclaration"
 
 def p_Declaration_Comment(p):
     "Declaration : COMMENT"
-    p.parser.current[1][p[1]] = ""
+    p.parser.current[1].append(p[1])
 
 
 def p_Declaration_Var(p):
     "Declaration : str '=' Var"
-    p.parser.current[1][p[1]] = p[3]
+    p.parser.current[1].append(f"{p[1]} = {p[3]}")
 
-def p_Var_Single(p):
-    "Var : Elem"
+def p_Declaration_Var_error(p):
+    "Declaration : error '=' Var"
+    print("Info : variable name has to be string")
+
+
+def p_PlyDeclaration_literals(p):
+    "PlyDeclaration : LITERALS '=' LiteralsFactor"
+    p.parser.current[0][p[1]] = p[3] 
+    p[0] = p[3]
+
+def p_PlyDeclaration_literals_error(p):
+    "PlyDeclaration : LITERALS '=' error"
+    print("Info : literals value must be a string or array")
+
+
+def p_LiteralsFactor_Array(p):
+    "LiteralsFactor : Array"
     p[0] = p[1]
 
-def p_Var_DictEmpty(p):
-    "Var : allBraces"
+def p_LiteralsFactor_String(p):
+    "LiteralsFactor : allQuotes"
     p[0] = p[1]
+
+def p_PlyDeclaration_ignore(p):
+    "PlyDeclaration : IGNORE '=' allQuotes"
+    p.parser.current[0][p[1]] = p[3] 
+    p[0] = p[3]
+
+def p_PlyDeclaration_ignore_error(p):
+    "PlyDeclaration : IGNORE '=' error"
+    print("Info : ignore value must be a string")
+
+
+def p_PlyDeclaration_tokens(p):
+    "PlyDeclaration : TOKENS '=' Array"
+    p.parser.current[0][p[1]] = p[3] 
+    p[0] = p[3]
+
+def p_PlyDeclaration_tokens_error(p):
+    "PlyDeclaration : TOKENS '=' error"
+    print("Info : tokens value must be an array")
+
+
+def p_PlyDeclaration_precedence(p):
+    "PlyDeclaration : PRECEDENCE '=' PrecedenceFactor"
+    p.parser.current[0][p[1]] = p[3] 
+    p[0] = p[3]
+
+
+def p_PlyDeclaration_precedence_error(p):
+    "PlyDeclaration : PRECEDENCE '=' error"
+    print("Info : precedence value must be a tuple or an array")
+
+def p_PlyDeclaration_error(p):
+    "PlyDeclaration : error '=' Var"
+    print(f"Info : There's no ply variable with name:'{p[1].value}'")
+
+
+def p_PrecedenceFactor_Array(p):
+    "PrecedenceFactor : Array"
+    p[0] = p[1]
+
+def p_PrecedenceFactor_Tuple(p):
+    "PrecedenceFactor : Tuple"
+    p[0] = p[1]
+
+
 
 def p_Var_Array(p):
-    "Var : '[' Lista ']'"
-    print("Array",p[2]) 
-    if not p[2]:
-        p[2] = "[]"
-    p[0] = f"{p[2]}"
+    "Var : Array"
+    p[0] = arrayToString(p[1])
 
 def p_Var_Dict(p):
-    "Var : '{' Lista '}'"
-    strRes = ""
-    for elem in p[2]:
-        lista = elem.split(':')
-        key = lista[0]
-        value = lista[1]
-        strRes += f"\t{key} : {value},\n"
-    p[0] = "{\n" + strRes + "}\n"
+    "Var : Dict"
+    if p[1] == "":
+        p[0] = "{}"
+    else:
+        strRes = ""
+        for elem in p[1]:
+            lista = elem.split(':')
+            key = lista[0]
+            value = lista[1]
+            strRes += f"\t{key} : {value},\n"
+        p[0] = "{\n" + strRes + "}\n"
 
-def p_TypeDeclaration_literals(p):
-    "TypeDeclaration : LITERALS"
+
+def p_Var_String(p):
+    "Var : allQuotes ElemFactor"
+    p[0] = p[1] + p[2]
+
+
+def p_Var_int(p):
+    "Var : int"
     p[0] = p[1]
 
-def p_TypeDeclaration_ignore(p):
-    "TypeDeclaration : IGNORE"
+def p_Var_float(p):
+    "Var : float"
     p[0] = p[1]
 
-def p_TypeDeclaration_tokens(p):
-    "TypeDeclaration : TOKENS"
+
+def p_Var_Tuple(p):
+    "Var : Tuple"
     p[0] = p[1]
 
-def p_TypeDeclaration_precedence(p):
-    "TypeDeclaration : PRECEDENCE"
-    p[0] = p[1]
+def p_Tuple(p):
+    "Tuple : '(' Lista ')'"
+    strRes = '(' +  elemsToString(p[2]) + ')'
+    p[0] = strRes
 
-def p_Attrib_list(p):
-    "Attrib : '[' Lista ']'"
+def p_Array(p):
+    "Array : '[' Lista ']'"
     p[0] = p[2]
 
-def p_Attrib_tuple(p):
-    "Attrib : '(' Lista ')'"
+def p_Dict(p):
+    "Dict : '{' Lista '}'"
     p[0] = p[2]
 
-def p_Attrib_simple(p):
-    "Attrib :  allQuotes"
-    p[0] = p[1]
-
-def p_Final(p):
-    "Final : ','"
-
-def p_Final_empty(p):
-    "Final : "
+def p_Dict_Empty(p):
+    "Dict : allBraces"
+    elem = re.sub("{(.*)}","\1",p[1])
+    if "," in elem:
+        lista = elem.split(',') 
+        p[0] = lista
+    else:        
+        p[0] = ""
 
 def p_Lista_empty(p):
     "Lista :"
@@ -125,29 +192,19 @@ def p_Lista(p):
     "Lista : Elems Final"
     p[0] = p[1]
 
+def p_Final(p):
+    "Final : ','"
+
+def p_Final_empty(p):
+    "Final : "
+
 def p_Elems_list (p):
-    "Elems : Elems ',' Elem"
+    "Elems : Elems ',' Var"
     p[0] = p[1] + [p[3]] 
 
 def p_Elems_single(p):
-    "Elems : Elem"
+    "Elems : Var"
     p[0] = [p[1]]
-
-def p_Elem(p):
-    "Elem : str ElemFactor"
-    p[0] = p[1] + p[2]
-
-def p_Elem_Tuple(p):
-    "Elem : '(' Tuple ')'"
-    p[0] = f"({p[2]})"
-    
-def p_Elem_int(p):
-    "Elem : int"
-    p[0] = p[1]
-
-def p_elem_float(p):
-    "Elem : float"
-    p[0] = p[1]
 
 def p_ElemFactor_dict(p):
     "ElemFactor : ':' Var"
@@ -157,31 +214,49 @@ def p_ElemFactor_empty(p):
     "ElemFactor : "
     p[0] = ""
 
-def p_Tuple_list(p):
-    "Tuple : Tuple ',' Elem"
-    p[0] = f"{p[1]},{p[3]}"
-
-def p_Tuple_single(p):
-    "Tuple : Elem"
-    p[0] = p[1]
-
 def p_Rules_list(p):
     "Rules : Rules Rule"
 
 def p_Rules_empty(p):
     "Rules : Rule"
 
+
+def p_Comment(p):
+    "Comment : COMMENT"
+    p[0] = p[1]
+
+def p_Comment_empty(p):
+    "Comment : "
+    p[0] = ""
+
 def p_Rule(p):
-    "Rule : str ':' allQuotes allBraces"
+    "Rule : str ':' allQuotes allBraces Comment"
     if p[1] not in p.parser.current[0]:
          p.parser.current[0][p[1]] = []
-    p.parser.current[0][p[1]] += [{"rule": p[3], "code":p[4]}]
+    p.parser.current[0][p[1]] += [{"rule": p[3], "code":p[4], "comment" : p[5]}]
+
+def p_Rule_errorName(p):
+    "Rule : error ':' allQuotes allBraces"
+    if p[1].type != "COMMENT":
+        print(f"Info : Rule name '{p[1].value}' is invalid. Has to be string.")
+
+def p_Rule_errorRule(p):
+    "Rule : str ':' error allBraces"
+    print(f"Info : Rule '{p[3].value}' is invalid. The rule has to be inside quotes(\").")
+
+def p_Rule_errorCode(p):
+    "Rule : str ':' allQuotes error"
+    print(f"Info : The code '{p[4].value}' for function '{p[1]}' is invalid. The code has to be inside braces " + "{}.")
 
 
 
-def p_error(token):
-    if token is not None:
-        print ("Line %s, illegal token %s | %s" % (token.lineno, token.value,token))
+def p_error(p):
+    if p is not None:
+        if p.type == "COMMENT":
+            print("Comment ignored (out of section): ", p.value)
+        else :
+            parser.sucess = False
+            print ("Syntax Error -> illegal token (value : %s | type :%s)" % (p.value,p.type))
     else:
         print('Unexpected end of input')
 
@@ -208,16 +283,17 @@ def checkCast(statements,name):
 def lexFunction(name,function):
     strRes = ""
     elem= function[0]
+    strRes += elem['comment'] + "\n"
     strRes += f"def t_{name}({lexVar}):\n"
     rule = elem['rule']
     rule = re.sub("\\''",'\"',rule)
-    strRes += f"\tr{rule}\n"
+    if name != "error": strRes += f"\tr{rule}\n"
     code = elem['code']
     code = code[1:-1] # remove braces
     if code != "":
         code = checkCast(code,name)
         strRes+= f"{code}"
-    strRes += f"\treturn {lexVar}\n\n"
+    if name != "error": strRes += f"\treturn {lexVar}\n\n"
     return strRes
 
 
@@ -230,13 +306,13 @@ def findVarLex(rules):
     if l:
         lexVar = max(set(l), key=l.count)
 
-def buildLex(dict,dictVar):
+def buildLex(dict,arrayVar):
     str = ""
     str += "import ply.lex as lex\n\n" 
     listTokens = dict['tokens']
     listTokens = [elem.replace("'","") for elem in listTokens] # remove single quotes from each token
     findVarLex(dict.values())
-    str += buildVar(dictVar)
+    str += buildVar(arrayVar)
     lista = ["ignore","literals","tokens"]
     for key,elem in dict.items():
         if key not in lista:
@@ -251,9 +327,9 @@ def buildLex(dict,dictVar):
             if type(elem) is list:
                 elem = arrayToString(elem)
             str += f"{key} = {elem}"
-            if key == "tokens" and "reserved" in dictVar:
+            if key == "tokens" and any ([x.startswith("reserved ") for x in arrayVar]):
                 str += "+ list(reserved.values())"
-            str += "\n"
+            str += "\n\n"
     if listTokens:
         raiseError("Lex",f"these tokens {arrayToString(listTokens)} are not defined")
     str += "lex.lex()\n"
@@ -277,10 +353,28 @@ def findVarYacc(lista):
     if l:
         grammarVar = max(set(l), key=l.count)
 
+def checkComment(comment):
+    match = re.search("N=(\w+)",comment)
+    if match is not None:
+        comment = re.sub(match[0],"",comment)
+        res = re.match("#(.+)",comment)
+        res = res[1].strip()
+        return (match[1],res)
+    return(None,comment)
+
+
 def buildGrammarRules(name,ruleList):
     strRes = ""
-    for count, dict in enumerate(ruleList):
-        strRes += f"def p_{name}_{count}({grammarVar}):\n"
+    count = 0
+    for dict in ruleList:
+        (cName,comment) = checkComment(dict['comment'])
+        if cName:
+            strRes += '# ' + comment + "\n"
+            strRes += f"def p_{name}_{cName}({grammarVar}):\n"
+        else:
+            strRes += comment + "\n"
+            strRes += f"def p_{name}_{count}({grammarVar}):\n"
+            count += 1
         rule = dict['rule']
         rule = rule[1:-1] # remove quotes
         strRes += f"\t\"{name} : {rule}\"\n"
@@ -288,13 +382,11 @@ def buildGrammarRules(name,ruleList):
         code = code[1:-1].strip() # remove braces and spaces in beg
         code = buildCodeStatements(code)
         strRes += f"{code}\n"
-        count +=1
     return strRes
 
 
 def buildYacc(grammar, dictVar):
-    strRes = doImportYacc()
-    strRes += buildVar(dictVar)
+    strRes = buildVar(dictVar)
     findVarYacc(grammar.values())
     for key,elem in grammar.items():
         if key == "precedence":
@@ -315,48 +407,96 @@ def doImportYacc():
         resStr += f"import ply.yacc as {l[2]}\n"
     else:
         resStr += "from ply.yacc import *\n"
-    resStr += f"from {importNameLex} import tokens, literals\n\n"
     return resStr
+
+
+def errorExit(error):
+    print("Error :" + error)
+    print(" Run '-h' or 'help' for more info.")
+    exit()
+
+def checkArguments():
+    fase = "Arguments"
+    lenArgs = len(sys.argv)
+    if lenArgs != 2:
+        option = sys.argv[1]
+        filename = sys.argv[2]
+        if lenArgs == 3 and (option == '-t' or option == 'template'):
+            if option == '-t' or option == 'template':
+                template(filename)
+                exit()
+            else:
+                raiseError(fase,"These arguments are not valid.")
+        else:
+            raiseError(fase,"These arguments are not valid.")
+    filename = sys.argv[1]
+    #help
+    if filename == '-h' or filename == 'help':
+        help()
+        exit()
+    #template 
+    if filename == '-t' or filename == 'template':
+        template()
+        exit()
+    # file exists 
+    if not os.path.exists(filename):
+        raiseError(fase,f"There's no file with name:'{filename}'.")
+    return filename
 
 
 
 # Build the parser
 parser = yacc.yacc()
-parser.yacc=({},{})
-parser.lex=({},{})
-parser.current = []
+parser.yacc=({},[])
+parser.lex=({},[])
+parser.current = ()
 parser.noConv = ""
+parser.sucess = True
 
-import sys
-if len(sys.argv)!= 2:
-    print("Erro: Nº de argumentos inválidos\nÉ necessário um ficheiro como argumento")
-    exit()
-filename = sys.argv[1]
-f = open(filename)
-program = f.read()
-codigo = parser.parse(program)
 
-grammarVar = "p"
-lexVar = "t"
+import sys, os
 
-# Build Lex
-filenameLex = filename.split('.')[0] + "_lex.py"
-
-lexStr =""
 try:
-    lexStr = buildLex(parser.lex[0],parser.lex[1])
+    filename = checkArguments()
 except Exception as error:
     print(error)
     exit()
 
-# Build Yacc
-filenameYacc = filename.split('.')[0] + "_yacc.py"
-importNameLex = filenameLex.split('.')[0]
 
-yaccStr = ""
-yaccStr += buildYacc(parser.yacc[0],parser.yacc[1])
-yaccStr += parser.noConv
+f = open(filename)
+program = f.read()
+parser.parse(program)
 
-writeToFile(filenameLex,lexStr)
-writeToFile(filenameYacc,yaccStr)
+grammarVar = "p"
+lexVar = "t"
+
+
+if parser.sucess:
+    # Build Lex
+    importLex = False
+    if parser.lex != ({},[]):
+        filenameLex = filename.split('.')[0] + "_lex.py"
+        try:
+            lexStr = buildLex(parser.lex[0],parser.lex[1])
+        except Exception as error:
+            print(error)
+            exit()
+        writeToFile(filenameLex,lexStr)
+        importLex = True
+
+    if parser.yacc != ({},[]):
+        # Build Yacc
+        yaccStr = ""
+        yaccStr += doImportYacc()
+        if importLex:
+            importNameLex = filenameLex.split('.')[0]
+            yaccStr += f"from {importNameLex} import tokens, literals\n\n"
+        yaccStr += buildYacc(parser.yacc[0],parser.yacc[1])
+        yaccStr += parser.noConv
+
+        #Write Files
+        filenameYacc = filename.split('.')[0] + "_yacc.py"
+        writeToFile(filenameYacc,yaccStr)
+else:
+    print("Execution aborted. For help, run programm with help or -h.")
 
